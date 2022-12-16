@@ -20,17 +20,19 @@ type CivilTime time.Time
 type Time time.Time
 
 var db *gorm.DB
-var err error
+var dbErr error
 var c chan os.Signal
 
 var messagePubHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
 	fmt.Printf("MQTT Received message: %s from topic: %s\n", msg.Payload(), msg.Topic())
 
 	var geo PhoneGeo
-	_ = json.Unmarshal([]byte(msg.Payload()), &geo)
+	err := json.Unmarshal([]byte(msg.Payload()), &geo)
+	if err != nil {
+		fmt.Printf("messagePubHandler failure during unmarshal %v\n", err)
+		return
+	}
 	fmt.Println("Got geo unmarshalled")
-	fmt.Println(geo.DeviceId)
-
 	result := db.Create(&geo)
 	fmt.Printf("gorm create result: %v\n", result)
 }
@@ -73,12 +75,10 @@ func main() {
 		panic(token.Error())
 	}
 
-	db, err = gorm.Open(mysql.Open(dbConn), &gorm.Config{})
+	db, dbErr = gorm.Open(mysql.Open(dbConn), &gorm.Config{})
 	db.AutoMigrate(&PhoneGeo{})
-	if err != nil {
+	if dbErr != nil || db == nil {
 		panic("failed to connect database")
-	} else if db != nil {
-		fmt.Println("Got db connection")
 	}
 
 	if token := client.Subscribe(mqttTopic, 0, nil); token.Wait() &&
@@ -86,13 +86,8 @@ func main() {
 		fmt.Println(token.Error())
 		os.Exit(1)
 	}
+	fmt.Printf("Subscribed to topic %s\n", mqttTopic)
 
 	<-c
 	// client.Disconnect(250)
-}
-
-func sub(client mqtt.Client, topic string) {
-	token := client.Subscribe(topic, 1, nil)
-	token.Wait()
-	fmt.Printf("Subscribed to topic %s\n", topic)
 }
