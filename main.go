@@ -23,18 +23,8 @@ var db *gorm.DB
 var err error
 var c chan os.Signal
 
-type PhoneGeo struct {
-	gorm.Model
-	DeviceId  string  `json:"device_id" `
-	Name      string  `json:"device_name" `
-	Latitude  float64 `json:"latitude" `
-	Longitude float64 `json:"longitude" `
-	Speed     float32 `json:"speed" `
-	Timestamp uint64  `json:"timestamp" `
-}
-
 var messagePubHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
-	fmt.Printf("Received message: %s from topic: %s\n", msg.Payload(), msg.Topic())
+	fmt.Printf("MQTT Received message: %s from topic: %s\n", msg.Payload(), msg.Topic())
 
 	var geo PhoneGeo
 	_ = json.Unmarshal([]byte(msg.Payload()), &geo)
@@ -46,11 +36,11 @@ var messagePubHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Me
 }
 
 var connectHandler mqtt.OnConnectHandler = func(client mqtt.Client) {
-	fmt.Println("Connected")
+	fmt.Println("MQTT Connected")
 }
 
 var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err error) {
-	fmt.Printf("Connect lost: %v\n", err)
+	fmt.Printf("MQTT Connect lost: %v\n", err)
 }
 
 func main() {
@@ -68,9 +58,6 @@ func main() {
 	mqttPassword := os.Getenv("MQTT_PASSWORD")
 	mqttTopic := os.Getenv("MQTT_TOPIC")
 	dbConn := os.Getenv("DB_CONN")
-
-	fmt.Printf("%s %s %s %s\n", mqttServer, mqttUser, mqttPassword, mqttTopic)
-	fmt.Printf("%s\n", dbConn)
 
 	var port = 1883
 	opts := mqtt.NewClientOptions()
@@ -91,7 +78,7 @@ func main() {
 	if err != nil {
 		panic("failed to connect database")
 	} else if db != nil {
-		fmt.Println("Got db but what's next?")
+		fmt.Println("Got db connection")
 	}
 
 	if token := client.Subscribe(mqttTopic, 0, nil); token.Wait() &&
