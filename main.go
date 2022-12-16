@@ -22,6 +22,7 @@ type Time time.Time
 var db *gorm.DB
 var dbErr error
 var c chan os.Signal
+var done chan bool
 
 var messagePubHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
 	fmt.Printf("MQTT Received message: %s from topic: %s\n", msg.Payload(), msg.Topic())
@@ -48,6 +49,7 @@ var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err
 func main() {
 	fmt.Println("Main")
 	c = make(chan os.Signal, 1)
+	done = make(chan bool, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 
 	err := godotenv.Load()
@@ -88,6 +90,14 @@ func main() {
 	}
 	fmt.Printf("Subscribed to topic %s\n", mqttTopic)
 
-	<-c
-	// client.Disconnect(250)
+	go func() {
+		sig := <-c
+		fmt.Println()
+		fmt.Println(sig)
+		done <- true
+	}()
+
+	fmt.Println("awaiting signal")
+	<-done
+	fmt.Println("exiting")
 }
