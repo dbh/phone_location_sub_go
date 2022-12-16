@@ -38,7 +38,7 @@ var messagePubHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Me
 	fmt.Println("Got geo unmarshalled")
 	fmt.Println(geo.DeviceId)
 
-	result := db.Create(&geo) // pass pointer of data to Create
+	result := db.Create(&geo)
 	fmt.Printf("gorm create result: %v\n", result)
 }
 
