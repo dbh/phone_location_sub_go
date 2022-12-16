@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
@@ -19,6 +21,7 @@ type Time time.Time
 
 var db *gorm.DB
 var err error
+var c chan os.Signal
 
 type PhoneGeo struct {
 	gorm.Model
@@ -47,11 +50,13 @@ var connectHandler mqtt.OnConnectHandler = func(client mqtt.Client) {
 }
 
 var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err error) {
-	fmt.Printf("Connect lost: %v", err)
+	fmt.Printf("Connect lost: %v\n", err)
 }
 
 func main() {
 	fmt.Println("Main")
+	c = make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 
 	err := godotenv.Load()
 	if err != nil {
@@ -89,14 +94,18 @@ func main() {
 		fmt.Println("Got db but what's next?")
 	}
 
-	sub(client, mqttTopic)
+	if token := client.Subscribe(mqttTopic, 0, nil); token.Wait() &&
+		token.Error() != nil {
+		fmt.Println(token.Error())
+		os.Exit(1)
+	}
 
-	time.Sleep(10 * time.Second)
-	client.Disconnect(250)
+	<-c
+	// client.Disconnect(250)
 }
 
 func sub(client mqtt.Client, topic string) {
 	token := client.Subscribe(topic, 1, nil)
 	token.Wait()
-	fmt.Printf("Subscribed to topic %s", topic)
+	fmt.Printf("Subscribed to topic %s\n", topic)
 }
