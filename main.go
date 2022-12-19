@@ -40,6 +40,15 @@ var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err
 	fmt.Printf("MQTT Connect lost: %v\n", err)
 }
 
+func mqttSubscribe(client mqtt.Client, mqttTopic string) {
+	if token := client.Subscribe(mqttTopic, 0, nil); token.Wait() &&
+		token.Error() != nil {
+		fmt.Println(token.Error())
+		os.Exit(1)
+	}
+	fmt.Printf("Subscribed to topic %s\n", mqttTopic)
+}
+
 func main() {
 	fmt.Println("Main")
 	c := make(chan os.Signal, 1)
@@ -77,12 +86,7 @@ func main() {
 		panic("failed to connect database")
 	}
 
-	if token := client.Subscribe(mqttTopic, 0, nil); token.Wait() &&
-		token.Error() != nil {
-		fmt.Println(token.Error())
-		os.Exit(1)
-	}
-	fmt.Printf("Subscribed to topic %s\n", mqttTopic)
+	mqttSubscribe(client, mqttTopic)
 
 	go func() {
 		sig := <-c
